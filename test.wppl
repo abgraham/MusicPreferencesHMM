@@ -1,0 +1,14 @@
+var filecontents = fs.read('lyrics.txt')
+
+var greeting = function () {
+    return flip(.5) ? "Hello" : "Howdy"
+}
+
+var audience = function () {
+    return flip(.5) ? "World" : "Universe"
+}
+
+var phrase = greeting() + ", " + audience() + "!"
+
+//phrase
+filecontents

@@ -1,0 +1,168 @@
+
+// Helper for creating our (dirichlet) transition model 
+var ones = function(n) {return Vector(repeat(n, function() {return 1}))};
+
+// The two possible sets of states (multi-state HMM versus single-state HMM)
+var states = ['s1', 's2'];
+var states2 = ['s1', 's2'];
+// QUESTION NOV. 29:
+// why are we passing in states and states2 as ['s1', 's2']; shouldn’t they not really have anything? Or it seems like we should start it at s1 but not have anything more, thus the refactored version below:
+var refact_states = ['s1'];
+
+// A list of every possible song in a person's listening history
+//var vocab = ['Sober', 'Liability'];
+var filecontents = fs.read('parsed_user_data.txt')
+var vocab = (filecontents.split(" ")).slice(0, -1)
+
+// Creates a dirichlet for the multi-state model's state to observation transitions
+var stateToObsModel = mem(function(state) {
+  return dirichlet(ones(vocab.length));
+})
+
+// Creates a dirichlet for the single-state model's state to observation transitions
+var stateToObsModel2 = mem(function(state) {
+  return dirichlet(ones(vocab.length));
+})
+
+// Maps the dirichlet created to the multi-state model's observations
+var observation = function(state) {
+  return Categorical({ps: stateToObsModel(state), vs: vocab}) 
+}
+
+// Maps the dirichlet created to the single-state model's observations
+var observation2 = function(state) {
+  return Categorical({ps: stateToObsModel2(state), vs: vocab})
+}
+
+// Creates a dirichlet as a distribution from previous states to subsequent states
+// (multi-state model)
+var stateToTransitionModel = mem(function(state) {
+  return dirichlet(ones(states.length));
+})
+
+// Creates a dirichlet as a distribution from previous states to subsequent states
+// (single-state model)
+var stateToTransitionModel2 = mem(function(state) {
+  return dirichlet(ones(states2.length));
+})
+
+// Maps this state-to-state dirichlet to relevant states 
+// (multi-state model)
+var transition = function(state) {
+  return categorical({ps: stateToTransitionModel(state), vs: states});
+}
+
+// Maps this state-to-state dirichlet to relevant states 
+// (single-state model)
+var transition2 = function(state) {
+  return categorical({ps: stateToTransitionModel2(state), vs: states2});
+}
+
+// Here, n = the number of previous observations 
+// This is modeling the HMM by recursively running from last to first observation.
+// When it recursively arrives at the first one, it always uses 's1' as a
+// For each one, it extrapolates what the next state was and how it corresponds to
+// the next observation.
+// We can think of this function returning an object with two properties, states
+// and observations.
+var hmm = function(n) {
+  var prev = (n == 1) ? {states: ['s1'], observations: []} : hmm(n - 1);
+  var newState = transition(prev.states[prev.states.length - 1]);
+  var newObs = observation(newState);
+  return {
+    states: prev.states.concat([newState]),
+    observations: prev.observations.concat([newObs])
+  };
+}
+
+// For the single-state HMM, everything is the same except the state is always 's1'
+// so we've simplified how states are assigned accordingly. 
+var hmm2 = function(n) {
+  var prev2 = (n == 1) ? {states: ['s1'], observations: []} : hmm2(n - 1);
+  // Here, the previous state will always be 's1'
+  var newObs2 = observation2('s1');
+  return {
+    // Here, unlike the multi-state model, we are always adding state1,
+    // instead of doing the grunt work of using a distribution to assign the next
+    // state. 
+    states: prev2.states.concat(['s1']),
+    observations: prev2.observations.concat([newObs2])
+  };
+}
+
+var factorialHMM = function(states, trueObservations){
+  if (trueObservations.length === 0){
+    return states;
+  } else {
+    var newState = transition(states[states.length - 1]);
+    var newObsDist = observation(newState);
+    observe(newObsDist, trueObservations[0])
+    //var newObs = observation(newState);
+    //factor((newObs == trueObservations[0]) ? 0 : -Infinity);
+    return factorialHMM(states.concat([newState]), trueObservations.slice(1));
+  }
+}
+
+var factorialHMM2 = function(states, trueObservations){
+  if (trueObservations.length === 0){
+    return states;
+  } else {
+    var newState = transition(states[states.length - 1]);
+    var newObsDist2 = observation2('s1');
+    observe(newObsDist2, trueObservations[0])
+    //var newObs2 = observation2('s1');
+    //factor((newObs2 == trueObservations[0]) ? 0 : -Infinity);
+    return factorialHMM(states.concat([newState]), trueObservations.slice(1));
+  }
+}
+
+var factorialHMMVariableState = function(numberOfStates, states, trueObservations){
+  // Use a very dumb method to get the proper states array 
+  var possibleStates = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12'];
+  possibleStates.slice(0, numberOfStates);
+
+  if (trueObservations.length === 0){
+    return states;
+  } else {
+    var newState = transition(states[states.length - 1]);
+    var newObsDist = observation(newState);
+    observe(newObsDist, trueObservations[0])
+    //var newObs = observation(newState);
+    //factor((newObs == trueObservations[0]) ? 0 : -Infinity);
+    return factorialHMM(states.concat([newState]), trueObservations.slice(1));
+  }
+
+}
+
+// a cleaner way to do this is just make a single HMM function that's a function of a number
+// of states 
+
+// The observed data - songs that we've seen.
+// We've purposely used a AAABBBB format so that we can see if the model
+// accurately recognizes that s1 s1 s1 s2 s2 s2 s2 is the most probable state ordering.
+//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability'];
+//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability'];
+//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability'];
+//var trueObservations = ['38a41b72-94f7-4d64-9285-ef12ad5bb7d5', '62e7b3b9-a6b5-4aa0-a83d-bced7f86d877', 'ca433b37-5f61-436d-ad35-5c3a17fe9a98']
+
+var uniqueFileContents = fs.read('parsed_unique_user_data.txt')
+var trueObservations = (filecontents.split(" ")).slice(0, -1)
+
+// The same as the multi-model above. 
+var modelComparison = function ()
+{
+  var whichModel = flip() ? 'hmm1' : 'hmm2'
+  var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  return whichModel
+}
+
+// Here, we use MCMC method with inference to visualize tables
+// that shows us the probabilities of each sequence of states given the observations.
+// We should use SMC-built for samples interleaved with factors. Takes a particles - use the more
+// the better (as many as you cna that it still runs )
+//viz.table(Infer({method: 'SMC', model:multi_model}));
+//viz.table(Infer({method: 'SMC', model:single_model}));
+//viz.table(Infer({method: 'SMC', particles:200, model:modelComparison}));
+//print(T.toScalars(stateToObsModel2('s1')));
+//Infer({method: 'SMC', particles:20000, model:modelComparison});
+

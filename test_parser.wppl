@@ -1,0 +1,17 @@
+var filecontents = fs.read('parsed_user_data.txt')
+
+var wordarray = (filecontents.split(" ")).slice(0, -1)
+
+var greeting = function () {
+    return flip(.5) ? "Hello" : "Howdy"
+}
+
+var audience = function () {
+    return flip(.5) ? "World" : "Universe"
+}
+
+var phrase = greeting() + ", " + audience() + "!"
+
+//phrase
+//filecontents
+wordarray
