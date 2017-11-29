@@ -4,15 +4,17 @@ var ones = function(n) {return Vector(repeat(n, function() {return 1}))};
 
 // The two possible sets of states (multi-state HMM versus single-state HMM)
 var states = ['s1', 's2'];
-var states2 = ['s1', 's2'];
+//var states2 = ['s1', 's2'];
+var states2 = ['s1'];
 // QUESTION NOV. 29:
 // why are we passing in states and states2 as ['s1', 's2']; shouldn’t they not really have anything? Or it seems like we should start it at s1 but not have anything more, thus the refactored version below:
 var refact_states = ['s1'];
 
 // A list of every possible song in a person's listening history
 //var vocab = ['Sober', 'Liability'];
-var filecontents = fs.read('parsed_user_data.txt')
-var vocab = (filecontents.split(" ")).slice(0, -1)
+var filecontents = fs.read('parsed_unique_user_data.txt')
+//var vocab = (filecontents.split(" ")).slice(0, -1)
+var vocab = ['Liability', 'Sober', 'C'];
 
 // Creates a dirichlet for the multi-state model's state to observation transitions
 var stateToObsModel = mem(function(state) {
@@ -140,20 +142,38 @@ var factorialHMMVariableState = function(numberOfStates, states, trueObservation
 // The observed data - songs that we've seen.
 // We've purposely used a AAABBBB format so that we can see if the model
 // accurately recognizes that s1 s1 s1 s2 s2 s2 s2 is the most probable state ordering.
-//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability'];
+var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability',  'C', 'C', 'C', 'C', 'C', 'C'];
 //var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability'];
 //var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability'];
 //var trueObservations = ['38a41b72-94f7-4d64-9285-ef12ad5bb7d5', '62e7b3b9-a6b5-4aa0-a83d-bced7f86d877', 'ca433b37-5f61-436d-ad35-5c3a17fe9a98']
 
-var uniqueFileContents = fs.read('parsed_unique_user_data.txt')
-var trueObservations = (filecontents.split(" ")).slice(0, -1)
+// Get the true observations by looking at the non-unique parsed data
+//var obsFileContents = fs.read('parsed_user_data.txt')
+//var trueObservations = (obsFileContents.split(" ")).slice(0, -1)
 
 // The same as the multi-model above. 
 var modelComparison = function ()
 {
   var whichModel = flip() ? 'hmm1' : 'hmm2'
-  var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  //var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  // TODO: switch states with refact_states
+  var r = whichModel == 'hmm1' ? factorialHMMVariableState(2, states, trueObservations) : factorialHMMVariableState(1, states2, trueObservations);
   return whichModel
+}
+
+// Model comparison PLUS joint inference with the number of bags 
+var modelComparisonJointInference = function ()
+{
+  // We also want to do inference on the number of states that we are allowing, that's taken care of
+  // by randomly assigning the number of states with a poisson distribution
+  // TODO 11/29: We'll probably want to raise the number from 4 to something higher
+  var poissonNumStates = (1 + poisson(1));
+  var whichModel = flip() ? 'hmm1' : 'hmm2'
+  //var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  // TODO: switch states with refact_states
+  var r = whichModel == 'hmm1' ? factorialHMMVariableState(2, states, trueObservations) : factorialHMMVariableState(1, states2, trueObservations);
+  //return whichModel
+  return poissonNumStates;
 }
 
 // Here, we use MCMC method with inference to visualize tables
@@ -164,5 +184,6 @@ var modelComparison = function ()
 //viz.table(Infer({method: 'SMC', model:single_model}));
 //viz.table(Infer({method: 'SMC', particles:200, model:modelComparison}));
 //print(T.toScalars(stateToObsModel2('s1')));
-//Infer({method: 'SMC', particles:20000, model:modelComparison});
+Infer({method: 'SMC', particles:20000, model:modelComparisonJointInference});
+
 
