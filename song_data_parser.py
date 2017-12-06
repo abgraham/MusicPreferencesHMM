@@ -3,7 +3,7 @@
 # to make it just into a list of song IDs
 # and then to make another file that's just a list of user ID's split up by spaces (so that the webppl file can use the .split() method on it)
 
-file = open('user1data.txt')
+file = open('userdata2.txt')
 listOfSongIDs = []
 for line in file:
     #print (line.split())[2]

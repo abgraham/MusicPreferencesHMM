@@ -13,10 +13,10 @@ var refact_states2 = ['s1'];
 
 // A list of every possible song in a person's listening history
 //var vocab = ['Sober', 'Liability'];
-var filecontents = fs.read('parsed_unique_user_data.txt')
+//var filecontents = fs.read('SongGenres.txt')
 //var vocab = (filecontents.split(" ")).slice(0, -1)
-var vocab = ['Liability', 'Sober', 'C'];
-var vocab = ['Liability', 'Sober', 'C', 'D'];
+var vocab = ['Pop', 'Hiphop', 'Folk', 'Electronic', 'Rock'];
+//var vocab = ['Liability', 'Sober', 'C', 'D'];
 
 // Creates a dirichlet for the multi-state model's state to observation transitions
 var stateToObsModel = mem(function(state) {
@@ -138,29 +138,20 @@ var factorialHMMVariableState = function(numberOfStates, states, trueObservation
 
 }
 
-// a cleaner way to do this is just make a single HMM function that's a function of a number
-// of states 
-
-// The observed data - songs that we've seen.
-// We've purposely used a AAABBBB format so that we can see if the model
-// accurately recognizes that s1 s1 s1 s2 s2 s2 s2 is the most probable state ordering.
-var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability',  'C', 'C', 'C', 'C', 'C', 'C'];
-//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability', 'Liability',  'C', 'C', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'D', 'D'];
-//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Liability', 'Liability'];
-//var trueObservations = ['Sober', 'Sober', 'Sober', 'Sober', 'Sober', 'Liability'];
-//var trueObservations = ['38a41b72-94f7-4d64-9285-ef12ad5bb7d5', '62e7b3b9-a6b5-4aa0-a83d-bced7f86d877', 'ca433b37-5f61-436d-ad35-5c3a17fe9a98']
-
 // Get the true observations by looking at the non-unique parsed data
-//var obsFileContents = fs.read('parsed_user_data.txt')
-//var trueObservations = (obsFileContents.split(" ")).slice(0, -1)
+var obsFileContents = fs.read('SongGenresAnnie.txt')
+//var obsFileContents = fs.read('SongGenresJack.txt')
+//var obsFileContents = fs.read('SongGenresAllison.txt')
+//var obsFileContents = fs.read('SongGenresMaddie.txt')
+var trueObservations = (obsFileContents.split(" ")).slice(0, -1)
 
 // The same as the multi-model above. 
 var modelComparison = function ()
 {
-  var whichModel = flip() ? 'hmm1' : 'hmm2'
-  //var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  var whichModel = flip() ? 'multistateHMM' : 'singlestateHMM'
+  //var r = whichModel == 'multistateHMM' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
   // TODO: switch states with refact_states
-  var r = whichModel == 'hmm1' ? factorialHMMVariableState(2, states, trueObservations) : factorialHMMVariableState(1, states2, trueObservations);
+  var r = whichModel == 'multistateHMM' ? factorialHMMVariableState(5, states, trueObservations) : factorialHMMVariableState(1, states2, trueObservations);
   return whichModel
 }
 
@@ -170,14 +161,14 @@ var modelComparisonJointInference = function ()
   // We also want to do inference on the number of states that we are allowing, that's taken care of
   // by randomly assigning the number of states with a poisson distribution
   var poissonNumStates = (1 + poisson(1));
-  var whichModel = flip() ? 'hmm1' : 'hmm2'
-  //var r = whichModel == 'hmm1' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
-  // TODO: switch states with refact_states
-  var r = whichModel == 'hmm1' ? factorialHMMVariableState(poissonNumStates, refact_states, trueObservations) : factorialHMMVariableState(1, refact_states2, trueObservations);
+  var whichModel = flip() ? 'multistateHMM' : 'singlestateHMM'
+  //var r = whichModel == 'multistateHMM' ? factorialHMM(states, trueObservations) : factorialHMM2(states2, trueObservations);
+  var r = whichModel == 'multistateHMM' ? factorialHMMVariableState(poissonNumStates, refact_states, trueObservations) : factorialHMMVariableState(1, refact_states2, trueObservations);
   //QUESTION 12/4: is there any way to return both the favorable model and the number of states favored,
   // or is that kind of what we're doing already maybe?
-  //return whichModel
-  return poissonNumStates;
+  return whichModel
+  //return poissonNumStates;
+  //return {A: whichModel, B: poissonNumStates}
 }
 
 // Here, we use MCMC method with inference to visualize tables
@@ -188,6 +179,9 @@ var modelComparisonJointInference = function ()
 //viz.table(Infer({method: 'SMC', model:single_model}));
 //viz.table(Infer({method: 'SMC', particles:200, model:modelComparison}));
 //print(T.toScalars(stateToObsModel2('s1')));
-Infer({method: 'SMC', particles:20000, model:modelComparisonJointInference});
-
-
+// To see the joint inference (tweak what's returned from whichModel to poissonNumStates)
+//Infer({method: 'SMC', particles:20000, model:modelComparisonJointInference});
+Infer({method: 'SMC', particles:20000, model:modelComparison});
+//var result = Infer({method: 'SMC', particles:20000, model:modelComparisonJointInference});
+//console.log(result)
+//console.log(result.B)
